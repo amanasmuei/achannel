@@ -2,10 +2,10 @@ import { Client, GatewayIntentBits } from "discord.js";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
 import { createLLMClient } from "../lib/llm.js";
-
-interface ConversationState {
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
-}
+import {
+  loadConversation,
+  saveConversation,
+} from "../lib/conversations.js";
 
 export function startDiscord(config: ChannelConfig): void {
   const client = new Client({
@@ -23,7 +23,6 @@ export function startDiscord(config: ChannelConfig): void {
     config.model,
     config.ollamaUrl,
   );
-  const conversations = new Map<string, ConversationState>();
 
   client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
@@ -37,20 +36,20 @@ export function startDiscord(config: ChannelConfig): void {
     if (!text) return;
 
     const channelId = message.channel.id;
-    if (!conversations.has(channelId)) {
-      conversations.set(channelId, { messages: [] });
-    }
-    const state = conversations.get(channelId)!;
 
-    state.messages.push({ role: "user", content: text });
-    if (state.messages.length > 20) {
-      state.messages = state.messages.slice(-20);
-    }
+    // Load conversation from disk
+    const messages = loadConversation("discord", channelId);
+
+    messages.push({ role: "user", content: text });
+    const trimmed = messages.slice(-20);
 
     try {
       await message.channel.sendTyping();
-      const response = await llm.chat(systemPrompt, state.messages);
-      state.messages.push({ role: "assistant", content: response });
+      const response = await llm.chat(systemPrompt, trimmed);
+      trimmed.push({ role: "assistant", content: response });
+
+      // Persist to disk
+      saveConversation("discord", channelId, trimmed);
 
       // Discord has 2000 char limit
       if (response.length > 1900) {

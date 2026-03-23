@@ -2,10 +2,11 @@ import TelegramBot from "node-telegram-bot-api";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
 import { createLLMClient } from "../lib/llm.js";
-
-interface ConversationState {
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
-}
+import {
+  loadConversation,
+  saveConversation,
+  clearConversation,
+} from "../lib/conversations.js";
 
 export function startTelegram(config: ChannelConfig): void {
   const bot = new TelegramBot(config.token, { polling: true });
@@ -16,7 +17,6 @@ export function startTelegram(config: ChannelConfig): void {
     config.model,
     config.ollamaUrl,
   );
-  const conversations = new Map<number, ConversationState>();
 
   bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
@@ -32,15 +32,9 @@ export function startTelegram(config: ChannelConfig): void {
       return;
     }
 
-    // Get or create conversation state
-    if (!conversations.has(chatId)) {
-      conversations.set(chatId, { messages: [] });
-    }
-    const state = conversations.get(chatId)!;
-
     // Handle /clear command
     if (text === "/clear") {
-      state.messages = [];
+      clearConversation("telegram", String(chatId));
       bot.sendMessage(chatId, "Conversation cleared.");
       return;
     }
@@ -57,19 +51,23 @@ export function startTelegram(config: ChannelConfig): void {
       return;
     }
 
+    // Load conversation from disk
+    const messages = loadConversation("telegram", String(chatId));
+
     // Add user message
-    state.messages.push({ role: "user", content: text });
+    messages.push({ role: "user", content: text });
 
     // Keep last 20 messages to avoid context overflow
-    if (state.messages.length > 20) {
-      state.messages = state.messages.slice(-20);
-    }
+    const trimmed = messages.slice(-20);
 
     try {
       bot.sendChatAction(chatId, "typing");
 
-      const response = await llm.chat(systemPrompt, state.messages);
-      state.messages.push({ role: "assistant", content: response });
+      const response = await llm.chat(systemPrompt, trimmed);
+      trimmed.push({ role: "assistant", content: response });
+
+      // Persist to disk
+      saveConversation("telegram", String(chatId), trimmed);
 
       // Telegram has a 4096 char limit per message
       if (response.length > 4000) {

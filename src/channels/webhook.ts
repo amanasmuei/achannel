@@ -2,6 +2,11 @@ import http from "node:http";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
 import { createLLMClient } from "../lib/llm.js";
+import {
+  loadConversation,
+  saveConversation,
+  clearConversation,
+} from "../lib/conversations.js";
 
 export function startWebhook(config: ChannelConfig): void {
   const systemPrompt = assembleSystemPrompt();
@@ -47,13 +52,59 @@ export function startWebhook(config: ChannelConfig): void {
       });
       req.on("end", async () => {
         try {
-          const { message, messages } = JSON.parse(body);
-          const chatMessages = messages || [
-            { role: "user" as const, content: message },
-          ];
+          const { message, messages, session_id } = JSON.parse(body);
+
+          let chatMessages: Array<{
+            role: "user" | "assistant";
+            content: string;
+          }>;
+
+          if (session_id) {
+            // Persistent session: load from disk, append new message
+            chatMessages = loadConversation("webhook", session_id);
+            if (message) {
+              chatMessages.push({ role: "user", content: message });
+            }
+          } else {
+            // Stateless: use provided messages or single message
+            chatMessages = messages || [
+              { role: "user" as const, content: message },
+            ];
+          }
+
           const response = await llm.chat(systemPrompt, chatMessages);
+
+          if (session_id) {
+            chatMessages.push({ role: "assistant", content: response });
+            saveConversation("webhook", session_id, chatMessages);
+          }
+
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ response }));
+          res.end(JSON.stringify({ response, session_id }));
+        } catch (error) {
+          const errMsg =
+            error instanceof Error ? error.message : "Unknown error";
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: errMsg }));
+        }
+      });
+      return;
+    }
+
+    // DELETE /chat — clear a session
+    if (req.method === "DELETE" && req.url === "/chat") {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        try {
+          const { session_id } = JSON.parse(body);
+          if (session_id) {
+            clearConversation("webhook", session_id);
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ cleared: true }));
         } catch (error) {
           const errMsg =
             error instanceof Error ? error.message : "Unknown error";
