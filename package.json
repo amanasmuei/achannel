@@ -1,0 +1,55 @@
+{
+  "name": "@aman_asmuei/achannel",
+  "version": "0.1.0",
+  "description": "The portable channel layer for AI companions — Telegram, Discord, WhatsApp, webhooks",
+  "type": "module",
+  "bin": {
+    "achannel": "./bin/achannel.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.80.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "discord.js": "^14.16.0",
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-telegram-bot-api": "^0.64.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "ai",
+    "companion",
+    "telegram",
+    "discord",
+    "whatsapp",
+    "webhook",
+    "channel",
+    "llm",
+    "anthropic",
+    "openai",
+    "ollama"
+  ],
+  "author": "Aman Asmuei",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amanasmuei/achannel.git"
+  }
+}
