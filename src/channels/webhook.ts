@@ -1,21 +1,19 @@
 import http from "node:http";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
-import { createLLMClient } from "../lib/llm.js";
+import { chatWithTools } from "../lib/llm.js";
 import {
   loadConversation,
   saveConversation,
   clearConversation,
 } from "../lib/conversations.js";
+import type { McpManager } from "../mcp/client.js";
 
-export function startWebhook(config: ChannelConfig): void {
+export function startWebhook(
+  config: ChannelConfig,
+  mcpManager: McpManager | null,
+): void {
   const systemPrompt = assembleSystemPrompt();
-  const llm = createLLMClient(
-    config.provider,
-    config.apiKey,
-    config.model,
-    config.ollamaUrl,
-  );
 
   const port = parseInt(config.token) || 3000;
 
@@ -72,7 +70,15 @@ export function startWebhook(config: ChannelConfig): void {
             ];
           }
 
-          const response = await llm.chat(systemPrompt, chatMessages);
+          const response = await chatWithTools(
+            config.provider,
+            config.apiKey,
+            config.model,
+            systemPrompt,
+            chatMessages,
+            mcpManager,
+            config.ollamaUrl,
+          );
 
           if (session_id) {
             chatMessages.push({ role: "assistant", content: response });

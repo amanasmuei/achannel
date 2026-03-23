@@ -1,13 +1,17 @@
 import { Client, GatewayIntentBits } from "discord.js";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
-import { createLLMClient } from "../lib/llm.js";
+import { chatWithTools } from "../lib/llm.js";
 import {
   loadConversation,
   saveConversation,
 } from "../lib/conversations.js";
+import type { McpManager } from "../mcp/client.js";
 
-export function startDiscord(config: ChannelConfig): void {
+export function startDiscord(
+  config: ChannelConfig,
+  mcpManager: McpManager | null,
+): void {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -17,12 +21,6 @@ export function startDiscord(config: ChannelConfig): void {
   });
 
   const systemPrompt = assembleSystemPrompt();
-  const llm = createLLMClient(
-    config.provider,
-    config.apiKey,
-    config.model,
-    config.ollamaUrl,
-  );
 
   client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
@@ -45,7 +43,15 @@ export function startDiscord(config: ChannelConfig): void {
 
     try {
       await message.channel.sendTyping();
-      const response = await llm.chat(systemPrompt, trimmed);
+      const response = await chatWithTools(
+        config.provider,
+        config.apiKey,
+        config.model,
+        systemPrompt,
+        trimmed,
+        mcpManager,
+        config.ollamaUrl,
+      );
       trimmed.push({ role: "assistant", content: response });
 
       // Persist to disk

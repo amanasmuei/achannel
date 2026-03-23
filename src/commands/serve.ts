@@ -2,6 +2,7 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { loadConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
+import { McpManager } from "../mcp/client.js";
 
 export async function serveCommand(): Promise<void> {
   const config = loadConfig();
@@ -32,17 +33,27 @@ export async function serveCommand(): Promise<void> {
     p.log.warning("No ecosystem configured — AI will have no identity");
   }
 
+  // Start MCP servers
+  const mcpManager = new McpManager();
+  await mcpManager.connect("aman", "npx", ["-y", "@aman_asmuei/aman-mcp"]);
+  await mcpManager.connect("amem", "npx", ["-y", "@aman_asmuei/amem"]);
+
+  const toolCount = mcpManager.getTools().length;
+  if (toolCount > 0) {
+    p.log.success(`${toolCount} MCP tools available`);
+  }
+
   for (const channel of config.channels) {
     try {
       if (channel.type === "telegram") {
         const { startTelegram } = await import("../channels/telegram.js");
-        startTelegram(channel);
+        startTelegram(channel, mcpManager);
       } else if (channel.type === "discord") {
         const { startDiscord } = await import("../channels/discord.js");
-        startDiscord(channel);
+        startDiscord(channel, mcpManager);
       } else if (channel.type === "webhook") {
         const { startWebhook } = await import("../channels/webhook.js");
-        startWebhook(channel);
+        startWebhook(channel, mcpManager);
       }
       p.log.success(
         `${channel.type}: active (${channel.mode} mode, ${channel.model})`,

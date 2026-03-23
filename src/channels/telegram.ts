@@ -1,22 +1,20 @@
 import TelegramBot from "node-telegram-bot-api";
 import type { ChannelConfig } from "../lib/config.js";
 import { assembleSystemPrompt } from "../lib/prompt.js";
-import { createLLMClient } from "../lib/llm.js";
+import { chatWithTools } from "../lib/llm.js";
 import {
   loadConversation,
   saveConversation,
   clearConversation,
 } from "../lib/conversations.js";
+import type { McpManager } from "../mcp/client.js";
 
-export function startTelegram(config: ChannelConfig): void {
+export function startTelegram(
+  config: ChannelConfig,
+  mcpManager: McpManager | null,
+): void {
   const bot = new TelegramBot(config.token, { polling: true });
   const systemPrompt = assembleSystemPrompt();
-  const llm = createLLMClient(
-    config.provider,
-    config.apiKey,
-    config.model,
-    config.ollamaUrl,
-  );
 
   bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
@@ -63,7 +61,15 @@ export function startTelegram(config: ChannelConfig): void {
     try {
       bot.sendChatAction(chatId, "typing");
 
-      const response = await llm.chat(systemPrompt, trimmed);
+      const response = await chatWithTools(
+        config.provider,
+        config.apiKey,
+        config.model,
+        systemPrompt,
+        trimmed,
+        mcpManager,
+        config.ollamaUrl,
+      );
       trimmed.push({ role: "assistant", content: response });
 
       // Persist to disk
