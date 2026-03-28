@@ -195,7 +195,7 @@ export async function streamChatWithTools(
     let currentBlockType: string | null = null;
 
     const stream = await client.messages.create(
-      createParams as Anthropic.Messages.MessageCreateParamsStreaming,
+      createParams as unknown as Anthropic.Messages.MessageCreateParamsStreaming,
     );
 
     for await (const event of stream) {
