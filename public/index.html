@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aman — AI companion</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header id="header">
+    <button id="sidebar-toggle" class="icon-btn" aria-label="Toggle sidebar">&#9776;</button>
+    <h1 class="logo">aman</h1>
+    <span id="header-model" class="badge"></span>
+    <div class="spacer"></div>
+    <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">&#9789;</button>
+  </header>
+
+  <!-- Layout -->
+  <div id="layout">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-section">
+        <div id="sidebar-profile" class="sidebar-card">
+          <div class="sidebar-label">Profile</div>
+          <div id="sidebar-ai-name" class="sidebar-value">Aman</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-card">
+          <div class="sidebar-label">Active Plan</div>
+          <div id="sidebar-plan" class="sidebar-value">No active plan</div>
+          <div id="sidebar-plan-bar" class="progress-bar" style="display:none">
+            <div class="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-card">
+          <div class="sidebar-label">Skills</div>
+          <div id="sidebar-skills" class="sidebar-value">—</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-card">
+          <div class="sidebar-label">Ecosystem</div>
+          <div id="sidebar-layers" class="sidebar-value">Loading...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main id="main">
+      <!-- Tabs -->
+      <nav id="tabs">
+        <a href="#chat" class="tab active" data-tab="chat">Chat</a>
+        <a href="#plans" class="tab" data-tab="plans">Plans</a>
+        <a href="#profiles" class="tab" data-tab="profiles">Profiles</a>
+        <a href="#teams" class="tab" data-tab="teams">Teams</a>
+        <a href="#memory" class="tab" data-tab="memory">Memory</a>
+        <a href="#settings" class="tab" data-tab="settings">Settings</a>
+      </nav>
+
+      <!-- Page: Chat -->
+      <div id="page-chat" class="page active">
+        <div id="messages" class="messages"></div>
+        <div id="typing" class="typing-indicator" style="display:none">
+          <span></span><span></span><span></span>
+        </div>
+        <form id="chat-form" class="chat-input">
+          <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off" autofocus>
+          <button type="submit" id="send-btn">Send</button>
+        </form>
+      </div>
+
+      <!-- Page: Plans -->
+      <div id="page-plans" class="page">
+        <h2>Plans</h2>
+        <div id="plans-list" class="card-list">Loading...</div>
+      </div>
+
+      <!-- Page: Profiles -->
+      <div id="page-profiles" class="page">
+        <h2>Profiles</h2>
+        <div id="profiles-list" class="card-list">Loading...</div>
+      </div>
+
+      <!-- Page: Teams -->
+      <div id="page-teams" class="page">
+        <h2>Teams</h2>
+        <div id="teams-list" class="card-list">Loading...</div>
+      </div>
+
+      <!-- Page: Memory -->
+      <div id="page-memory" class="page">
+        <h2>Memory</h2>
+        <form id="memory-form" class="search-form">
+          <input type="text" id="memory-query" placeholder="Search memories...">
+          <button type="submit">Search</button>
+        </form>
+        <div id="memory-results" class="card-list"></div>
+      </div>
+
+      <!-- Page: Settings -->
+      <div id="page-settings" class="page">
+        <h2>Settings</h2>
+        <div id="settings-content" class="card-list">Loading...</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
