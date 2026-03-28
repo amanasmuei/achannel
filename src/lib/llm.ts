@@ -151,3 +151,146 @@ export async function chatWithTools(
   const llm = createLLMClient(provider, apiKey, model, ollamaUrl);
   return llm.chat(systemPrompt, messages);
 }
+
+/**
+ * Streaming chat with SSE-compatible callback.
+ * Streams text chunks and tool status events.
+ */
+export async function streamChatWithTools(
+  provider: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Message[],
+  mcpManager: McpManager | null,
+  onChunk: (event: string, data: string) => void,
+  ollamaUrl?: string,
+): Promise<string> {
+  const tools = mcpManager?.getTools() || [];
+
+  if (provider === "anthropic") {
+    const client = new Anthropic({ apiKey });
+    const currentMessages: Anthropic.Messages.MessageParam[] = messages.map(
+      (m) => ({ role: m.role, content: m.content }),
+    );
+    let fullText = "";
+
+    const createParams: Record<string, unknown> = {
+      model,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: currentMessages,
+      stream: true,
+    };
+
+    if (tools.length > 0) {
+      createParams.tools = tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.input_schema as Anthropic.Messages.Tool["input_schema"],
+      }));
+    }
+
+    const toolUseBlocks: Array<{ id: string; name: string; inputJson: string }> = [];
+    let currentBlockType: string | null = null;
+
+    const stream = await client.messages.create(
+      createParams as Anthropic.Messages.MessageCreateParamsStreaming,
+    );
+
+    for await (const event of stream) {
+      if (event.type === "content_block_start") {
+        if (event.content_block.type === "text") {
+          currentBlockType = "text";
+        } else if (event.content_block.type === "tool_use") {
+          currentBlockType = "tool_use";
+          toolUseBlocks.push({
+            id: event.content_block.id,
+            name: event.content_block.name,
+            inputJson: "",
+          });
+          onChunk("tool", JSON.stringify({ name: event.content_block.name, status: "running" }));
+        }
+      } else if (event.type === "content_block_delta") {
+        if (currentBlockType === "text" && event.delta.type === "text_delta") {
+          fullText += event.delta.text;
+          onChunk("text", event.delta.text);
+        } else if (currentBlockType === "tool_use" && event.delta.type === "input_json_delta") {
+          const last = toolUseBlocks[toolUseBlocks.length - 1];
+          if (last) last.inputJson += event.delta.partial_json;
+        }
+      } else if (event.type === "content_block_stop") {
+        currentBlockType = null;
+      }
+    }
+
+    // Execute tools if requested
+    if (toolUseBlocks.length > 0 && mcpManager) {
+      const assistantContent: Anthropic.Messages.ContentBlockParam[] = [];
+      if (fullText) assistantContent.push({ type: "text", text: fullText });
+      for (const tu of toolUseBlocks) {
+        assistantContent.push({
+          type: "tool_use",
+          id: tu.id,
+          name: tu.name,
+          input: JSON.parse(tu.inputJson || "{}"),
+        });
+      }
+      currentMessages.push({ role: "assistant", content: assistantContent });
+
+      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+      for (const tu of toolUseBlocks) {
+        const result = await mcpManager.callTool(tu.name, JSON.parse(tu.inputJson || "{}"));
+        toolResults.push({ type: "tool_result", tool_use_id: tu.id, content: result });
+        onChunk("tool", JSON.stringify({ name: tu.name, status: "done" }));
+      }
+      currentMessages.push({ role: "user", content: toolResults });
+
+      // Follow-up after tools (non-streaming for simplicity)
+      const followUp = await client.messages.create({
+        model,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: currentMessages,
+      });
+      const followUpText = followUp.content
+        .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      if (followUpText) {
+        onChunk("text", followUpText);
+        fullText += followUpText;
+      }
+    }
+
+    return fullText;
+  }
+
+  // OpenAI / Ollama streaming
+  const clientOpts: ConstructorParameters<typeof OpenAI>[0] = { apiKey };
+  if (provider === "ollama") {
+    clientOpts.baseURL = ollamaUrl || "http://localhost:11434/v1";
+    clientOpts.apiKey = "ollama";
+  }
+  const client = new OpenAI(clientOpts);
+
+  const stream = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+    stream: true,
+  });
+
+  let fullText = "";
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content || "";
+    if (text) {
+      fullText += text;
+      onChunk("text", text);
+    }
+  }
+
+  return fullText;
+}
