@@ -60,9 +60,9 @@ npx @aman_asmuei/achannel serve
 ## How It Works
 
 ```
-  Telegram ──┐
-  Discord  ──┤
-  WhatsApp ──┼──> achannel ──> LLM (with full ecosystem context)
+  Browser  ──┐
+  Telegram ──┤
+  Discord  ──┼──> achannel ──> LLM (with full ecosystem context)
   Webhook  ──┘
 ```
 
@@ -82,6 +82,41 @@ npx @aman_asmuei/achannel serve
 | `achannel list` | List configured channels |
 | `achannel serve` | Start all channels |
 | `achannel doctor` | Health check |
+
+---
+
+## Web UI (New in v0.3.0)
+
+`achannel serve` now includes a full web dashboard at `http://localhost:3000`:
+
+- **Chat** with SSE streaming responses
+- **Plans** — view active plans with progress bars
+- **Profiles** — see available agent profiles
+- **Teams** — view agent teams
+- **Memory** — search your AI's memory
+- **Settings** — provider, model, ecosystem status
+
+Works on phone, tablet, and desktop. Dark and light theme.
+
+```bash
+achannel serve    # → open http://localhost:3000
+
+# Or via Docker
+docker compose up -d    # → same URL
+```
+
+**REST API endpoints:**
+
+| Endpoint | Description |
+|:---|:---|
+| `GET /chat/stream` | SSE streaming chat |
+| `GET /api/status` | Ecosystem status |
+| `GET /api/plans` | Plan list |
+| `GET /api/profiles` | Available profiles |
+| `GET /api/teams` | Team list |
+| `GET /api/memory?q=` | Memory search |
+| `POST /chat` | JSON chat |
+| `DELETE /chat` | Clear session |
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "@aman_asmuei/achannel",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The portable channel layer for AI companions — Telegram, Discord, WhatsApp, webhooks",
   "type": "module",
   "bin": {
